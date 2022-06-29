@@ -1,0 +1,71 @@
+---
+# tasks file for RaspiCam
+- hosts: RaspiCams
+  become: true
+
+  vars:
+    motion_package: pi_buster_motion_4.3.2-1_armhf.deb
+
+  tasks:
+    - name: apt-get update standard OS build
+      apt:
+        upgrade: yes    
+        update_cache: yes
+        cache_valid_time: 86400 #One day
+    #Install ffmpeg and other motion dependencies
+    - name: Install ffmpeg
+      apt:
+        update_cache: yes
+        name: ffmpeg
+        state: present
+    - name: Install libmariadb3
+      apt:
+        update_cache: yes
+        name: libmariadb3
+        state: present
+    - name: Install libpq5
+      apt:
+        update_cache: yes
+        name: libpq5
+        state: present
+    - name: Install libmicrohttpd12
+      apt:
+        update_cache: yes
+        name: libmicrohttpd12
+        state: present
+    #Install motion
+    - name: Check if motion is installed
+      command: dpkg-query -W motion
+      register: motion_check_deb
+      failed_when: motion_check_deb.rc > 1
+      changed_when: motion_check_deb.rc == 1
+    - name: Download Motion
+      get_url:
+        url: https://github.com/Motion-Project/motion/releases/download/release-4.3.2/{{ motion_package }}
+        dest: /tmp/{{ motion_package }}
+      when: motion_check_deb.rc == 1
+    - name: Install Motion
+      apt: 
+        deb: /tmp/{{ motion_package }}
+      when: motion_check_deb.rc == 1
+    #Disable motion service, motionEye controls motion
+    - name: Stop motion
+      systemd:
+        name: motion
+        state: stopped
+    - name: Disable motion
+      systemd:
+        name: motion
+        enabled: no
+  #Install the dependencies from the repositories
+    - name: Install python2
+      apt:
+        update_cache: yes
+        name: python2
+        state: present
+    - name: Install python-dev-is-python2
+      apt:
+        update_cache: yes
+        name: python-dev-is-python2
+        state: present
+
